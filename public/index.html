@@ -1,301 +1,888 @@
 <!--não a nada para besta ver no meu codigo fonte🖕  -->
-<!DOCTYPE html>
+<!--
+INSTRUÇÕES RÁPIDAS (LEIA)
+- Troque SUPABASE_URL e SUPABASE_ANON_KEY abaixo se precisar apontar para outro projeto.
+- Para login Google funcionar:
+  1) No Supabase Dashboard > Authentication > Providers: habilite Google.
+  2) Em "Authorized redirect URIs" adicione:
+     - http://localhost:5500 (para testes locais)
+     - e o domínio onde for hospedar a página.
+- Em produção: crie políticas RLS no Supabase (Row Level Security) para proteger inserts/updates/deletes.
+  Exemplos (resumo):
+    - profiles: allow insert/upsert only when auth.uid() = id; allow update only same user.
+    - cact_ingressos: sellers may insert/update/delete only for rows where user_id = auth.uid()
+    - cact_vendas: inserts allowed by authenticated users; sellers only view their vendas.
+  Também recomendamos triggers/edge functions para operações críticas (ex.: controle de estoque).
+- TESTE LOCAL: use um servidor simples (ex: `live-server` ou `python -m http.server 5500`) e adicione
+  http://localhost:5500 nos Redirect URIs do provider Google no Supabase.
+
+SUPABASE KEYS (já preenchidas abaixo — estas chaves ANON key são para frontend)
+- SUPABASE_URL:
+  https://nmbslklretjxqowhvotr.supabase.co
+- SUPABASE_ANON_KEY:
+  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc
+
+OBS: Não exponha secrets além da ANON_KEY no frontend.
+-->
+
+<!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cact Ingressos</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CACT Tickets — Plataforma</title>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-    body {
-        background: #111;
-        color: #fff;
-        font-family: Arial;
-        padding: 20px;
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#7c3aed;
+      --success:#16a34a; --danger:#ef4444; --glass: rgba(255,255,255,0.03);
+      --max-width:1000px;
     }
-    .box {
-        background: #1b1b1b;
-        padding: 20px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 0 10px #000;
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial;
+      background:linear-gradient(180deg,#071024 0%, #031426 100%); color:#e6eef8;
+      padding:20px; display:flex; justify-content:center;
     }
-    input, button, select {
-        width: 100%;
-        padding: 12px;
-        margin-top: 10px;
-        border: none;
-        border-radius: 8px;
-    }
-    button {
-        background: #00ff88;
-        color: #000;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    button:hover {
-        background: #00cc66;
-    }
-    .abaBtn {
-        width: 32%;
-        margin: 0.5%;
-        display: inline-block;
-        background: #333;
-        color: #fff;
-    }
-    #politicasModal {
-        display: none;
-        background: rgba(0,0,0,0.85);
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        padding: 20px;
-        overflow-y: auto;
-    }
-    #politicasContent {
-        background: #1a1a1a;
-        padding: 20px;
-        border-radius: 10px;
-        max-width: 700px;
-        margin: auto;
-        margin-top: 40px;
-    }
-</style>
+    .app{width:100%; max-width:var(--max-width);}
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+    .brand{display:flex; gap:12px; align-items:center}
+    .logo{width:44px; height:44px; background:linear-gradient(135deg,var(--accent),#2dd4bf); border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700}
+    h1{font-size:18px; margin:0}
+    .user-info{font-size:13px; color:var(--muted)}
+    .header-actions{display:flex; gap:8px; align-items:center}
+    button{background:var(--glass); border:1px solid rgba(255,255,255,0.03); color:inherit; padding:8px 12px; border-radius:8px; cursor:pointer}
+    button.primary{background:linear-gradient(90deg,var(--accent),#06b6d4); color:#011022; border:none}
+    button.warn{background:transparent; border:1px solid var(--danger); color:var(--danger)}
+    main{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); padding:18px; border-radius:12px; box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+    .tabs{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap}
+    .tab{padding:8px 12px; border-radius:8px; cursor:pointer; background:transparent; color:var(--muted)}
+    .tab.active{background:rgba(255,255,255,0.04); color:var(--accent); font-weight:600}
+    .grid{display:grid; grid-template-columns:1fr 360px; gap:14px}
+    @media (max-width:900px){ .grid{grid-template-columns:1fr}}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.02)}
+    form .row{display:flex; gap:8px}
+    label{font-size:13px; color:var(--muted); margin-bottom:6px; display:block}
+    input, select, textarea{width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit}
+    .list{display:flex; flex-direction:column; gap:8px; max-height:520px; overflow:auto; padding-right:6px}
+    .item{display:flex; justify-content:space-between; gap:8px; align-items:center; padding:10px; border-radius:8px; background:rgba(255,255,255,0.01)}
+    .muted{color:var(--muted); font-size:13px}
+    .badge{padding:6px 8px; border-radius:999px; background:rgba(255,255,255,0.02); font-size:12px}
+    .toast{position:fixed; right:20px; bottom:20px; min-width:220px; padding:12px 14px; border-radius:8px; box-shadow:0 6px 20px rgba(2,6,23,0.7); z-index:9999}
+    .toast.success{background:linear-gradient(90deg,#ecfccb,#bbf7d0); color:#052e12}
+    .toast.error{background:linear-gradient(90deg,#fee2e2,#fecaca); color:#4c0303}
+    .modal-backdrop{position:fixed; inset:0; background:rgba(2,6,23,0.6); display:flex; align-items:center; justify-content:center; z-index:999}
+    .modal{width:100%; max-width:680px; background:#051026; padding:18px; border-radius:12px}
+    .small{font-size:13px}
+    .flex{display:flex; gap:8px; align-items:center}
+    .right{margin-left:auto}
+    .muted-sm{color:var(--muted); font-size:12px}
+    .danger{color:var(--danger)}
+    .success{color:var(--success)}
+    .inline-input{display:flex; gap:8px}
+    a.link{color:var(--accent); text-decoration:none; font-weight:600}
+    footer{margin-top:12px; text-align:center; color:var(--muted); font-size:12px}
+  </style>
 </head>
-
 <body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">CT</div>
+        <div>
+          <h1>CACT Tickets</h1>
+          <div class="user-info" id="app-subtitle">Plataforma de ingressos (frontend)</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div id="user-block" style="display:none">
+          <div style="text-align:right;">
+            <div id="display-nome" style="font-weight:700"></div>
+            <div id="display-email" class="muted" style="font-size:12px"></div>
+          </div>
+        </div>
+        <button id="btn-login" class="primary">Entrar com Google</button>
+        <button id="btn-logout" style="display:none">Sair</button>
+      </div>
+    </header>
 
-<h1>Cact Ingressos 🎟️</h1>
-<p>Venda e compre ingressos com comissão automática.</p>
+    <main>
+      <div class="tabs" id="tabs" style="display:none">
+        <div class="tab active" data-tab="create">Criar Ingresso</div>
+        <div class="tab" data-tab="browse">Comprar Ingressos</div>
+        <div class="tab" data-tab="mine">Meus Ingressos</div>
+      </div>
 
-<!-- POLÍTICAS -->
-<div id="politicasBox" class="box" style="display:none;">
-    <h2>Políticas de Privacidade</h2>
-    <p>Você precisa aceitar para continuar usando a plataforma.</p>
-    <button onclick="abrirPoliticas()">Ler políticas completas</button>
-    <button onclick="aceitarPoliticas()">Aceitar ✔</button>
-</div>
+      <div id="content">
+        <!-- initial: login prompt shown inside main -->
+        <div id="welcome" class="card">
+          <h2>Bem-vindo à CACT Tickets</h2>
+          <p class="muted">Faça login com Google para começar — vendedores podem criar ingressos; compradores podem comprar.</p>
+          <p class="muted-sm">Se já tem sessão ativa, perfil e role serão carregados automaticamente.</p>
+        </div>
+      </div>
 
-<div id="politicasModal">
-    <div id="politicasContent">
-        <h2>Políticas de Privacidade</h2>
-        <p>O sistema registra suas vendas, compras e comissões.</p>
-        <p>A comissão NÃO é permanente e pode ser removida a qualquer momento.</p>
-        <button onclick="fecharPoliticas()">Fechar</button>
+    </main>
+
+    <footer>Feito com ❤️ — teste em <code>http://localhost:5500</code> e ative o Provider Google no Supabase</footer>
+  </div>
+
+  <!-- Politik Modal (shorthand) -->
+  <div id="policy-modal" class="modal-backdrop" style="display:none">
+    <div class="modal">
+      <h3>Política / Termos de Uso</h3>
+      <p class="muted-sm">Leia e aceite para usar a plataforma. Você pode fechar este modal apenas depois de aceitar.</p>
+      <div class="card" style="margin:12px 0; max-height:260px; overflow:auto">
+        <p style="margin:0 0 8px 0">Exemplo de termos: Ao usar esta plataforma, você concorda em fornecer informações corretas. Os vendedores são responsáveis por suas vendas. Esta é uma implementação de exemplo.</p>
+        <ul class="muted-sm">
+          <li>Uso para demonstração / testes.</li>
+          <li>Não nos responsabilizamos por erros do DB no backend.</li>
+          <li>Em produção, use RLS e validações server-side.</li>
+        </ul>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end">
+        <button id="policy-close">Fechar</button>
+        <button id="policy-accept" class="primary">Aceitar</button>
+      </div>
     </div>
-</div>
+  </div>
 
-<!-- LOGIN GOOGLE -->
-<div id="loginBox" class="box" style="display:none;">
-    <h2>Entrar</h2>
-    <button onclick="loginGoogle()">Entrar com Google</button>
-</div>
+  <!-- Dialogs -->
+  <div id="modal-root"></div>
 
-<!-- DASHBOARD -->
-<div id="dashboard" style="display:none;">
+  <!-- Toast container -->
+  <div id="toasts"></div>
 
-    <button class="abaBtn" onclick="abrirAba('abaCriar')">Criar Ingresso</button>
-    <button class="abaBtn" onclick="abrirAba('abaComprar')">Comprar</button>
-    <button class="abaBtn" onclick="abrirAba('abaMinhasVendas')">Minhas Vendas</button>
+  <!-- SUPABASE JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.35.0/dist/umd/supabase.min.js"></script>
 
-    <div id="abaCriar" class="box" style="display:none;">
-        <h2>Criar Ingresso</h2>
-        <input id="nomeIng" placeholder="Nome do ingresso">
-        <input id="localIng" placeholder="Local">
-        <input id="valorIng" type="number" placeholder="Valor">
-        <input id="qtdIng" type="number" placeholder="Quantidade">
-        <button onclick="criarIngresso()">Criar</button>
-    </div>
+  <script>
+  /**************************************************************************
+   * CONFIG / KEYS (visíveis conforme solicitado)
+   * Troque aqui se necessário.
+   **************************************************************************/
+  const SUPABASE_URL = 'https://nmbslklretjxqowhvotr.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc';
 
-    <div id="abaComprar" class="box" style="display:none;">
-        <h2>Ingressos à venda</h2>
-        <div id="listaComprar">Carregando...</div>
-    </div>
+  // init supabase
+  const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <div id="abaMinhasVendas" class="box" style="display:none;">
-        <h2>Minhas vendas</h2>
-        <div id="listaVendas">Carregando...</div>
-        <p><b>Total em comissão:</b> <span id="comissaoTotal"></span></p>
-    </div>
+  // Utilities
+  function el(q){return document.querySelector(q)}
+  function qAll(q){return Array.from(document.querySelectorAll(q))}
+  function escapeHtml(str){
+    if(!str && str !== 0) return '';
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+  function toast(message, type='success', timeout=3500){
+    const id = Math.random().toString(36).slice(2,9);
+    const t = document.createElement('div');
+    t.className = 'toast ' + (type==='error' ? 'error' : 'success');
+    t.id = 'toast-' + id;
+    t.innerText = message;
+    document.body.appendChild(t);
+    setTimeout(()=> {
+      t.style.opacity = '0'; t.style.transform='translateY(8px)';
+      setTimeout(()=> t.remove(), 400);
+    }, timeout);
+  }
 
-    <button style="margin-top:20px;" onclick="logout()">Sair</button>
-</div>
-
-<script>
-/* ======================== */
-/* SUPABASE CONFIG          */
-/* ======================== */
-const supabase = supabase.createClient(
-    "https://nmbslklretjxqowhvotr.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc"
-);
-
-/* ======================== */
-/* POLÍTICAS                */
-/* ======================== */
-function checkPoliticas() {
-    if (!localStorage.getItem("politicasAceitas")) {
-        politicasBox.style.display = "block";
-        return false;
-    }
-    return true;
-}
-function aceitarPoliticas() {
-    localStorage.setItem("politicasAceitas", "true");
-    location.reload();
-}
-function abrirPoliticas(){ politicasModal.style.display="block"; }
-function fecharPoliticas(){ politicasModal.style.display="none"; }
-
-/* ======================== */
-/* LOGIN GOOGLE             */
-/* ======================== */
-async function loginGoogle() {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google"
-    });
-    if (error) alert(error.message);
-}
-
-async function logout() {
-    await supabase.auth.signOut();
-    location.reload();
-}
-
-/* ======================== */
-/* ABAS                     */
-/* ======================== */
-function abrirAba(id) {
-    abaCriar.style.display = "none";
-    abaComprar.style.display = "none";
-    abaMinhasVendas.style.display = "none";
-    document.getElementById(id).style.display = "block";
-}
-
-/* ======================== */
-/* CRIAR INGRESSO           */
-/* ======================== */
-async function criarIngresso() {
-    const session = await supabase.auth.getSession();
-    const uid = session.data.session.user.id;
-
-    const nome = nomeIng.value;
-    const local = localIng.value;
-    const valor = Number(valorIng.value);
-    const qtd = Number(qtdIng.value);
-
-    await supabase.from("cact_ingressos").insert({
-        user_id: uid,
-        nome: nome,
-        local: local,
-        valor: valor,
-        quantidade: qtd
-    });
-
-    alert("Ingresso criado!");
-    carregarComprar();
-}
-
-/* ======================== */
-/* COMPRAR INGRESSO         */
-/* ======================== */
-async function comprar(id, valor) {
-    const session = await supabase.auth.getSession();
-    const uid = session.data.session.user.id;
-
-    const codigo = Math.random().toString(36).substring(2,10).toUpperCase();
-    const comissao = valor * 0.10;
-
-    await supabase.from("cact_vendas").insert({
-        ingresso_id: id,
-        comprador_id: uid,
-        codigo: codigo,
-        valor_pago: valor,
-        comissao_valor: comissao
-    });
-
-    await supabase.rpc("reduzir_estoque", { ing_id: id });
-
-    alert("Compra realizada! Código: " + codigo);
-    carregarComprar();
-}
-
-/* ======================== */
-/* LISTAR PARA COMPRA       */
-/* ======================== */
-async function carregarComprar() {
-    const { data } = await supabase.from("cact_ingressos").select("*");
-
-    let html = "";
-    data.forEach(i=>{
-        if(i.quantidade > 0){
-            html += `
-                <div class="box">
-                    <b>${i.nome}</b><br>
-                    Local: ${i.local}<br>
-                    Valor: R$ ${i.valor}<br>
-                    Estoque: ${i.quantidade}<br>
-                    <button onclick="comprar('${i.id}', ${i.valor})">Comprar</button>
-                </div>
-            `;
+  // Policy modal handling
+  const policyAcceptedKey = 'cact_policy_accepted_v1';
+  function showPolicyIfNeeded(){
+    const accepted = localStorage.getItem(policyAcceptedKey);
+    const modal = el('#policy-modal');
+    if(!accepted){
+      modal.style.display = 'flex';
+      el('#policy-close').onclick = () => {
+        // only allow close if already accepted
+        if(localStorage.getItem(policyAcceptedKey)){
+          modal.style.display = 'none';
+        } else {
+          toast('Você precisa aceitar os termos para fechar.', 'error', 2500);
         }
+      };
+      el('#policy-accept').onclick = () => {
+        localStorage.setItem(policyAcceptedKey, '1');
+        modal.style.display = 'none';
+        toast('Termos aceitos.', 'success', 2000);
+      };
+    } else {
+      modal.style.display = 'none';
+    }
+  }
+
+  // App state
+  let currentUser = null;
+  let currentProfile = null; // row from profiles
+  let currentTab = 'create';
+
+  // Init UI
+  function initUI(){
+    el('#btn-login').addEventListener('click', onLoginClicked);
+    el('#btn-logout').addEventListener('click', onLogoutClicked);
+    qAll('.tab').forEach(t => t.addEventListener('click', (e)=>{
+      qAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      currentTab = t.dataset.tab;
+      renderTab();
+    }));
+  }
+
+  // Auth handlers
+  async function onLoginClicked(){
+    try {
+      // sign in with google redirect popup
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // redirectTo can be left; Supabase will redirect back to page
+        }
+      });
+      // Note: after redirect the page reloads and we'll handle session in init()
+    } catch (err){
+      console.error('login err', err);
+      toast('Erro ao iniciar login: ' + (err.message || err), 'error');
+    }
+  }
+  async function onLogoutClicked(){
+    await supabase.auth.signOut();
+    currentUser = null; currentProfile = null;
+    el('#user-block').style.display = 'none';
+    el('#btn-login').style.display = 'inline-block';
+    el('#btn-logout').style.display = 'none';
+    el('#tabs').style.display = 'none';
+    el('#content').innerHTML = `<div id="welcome" class="card"><h2>Desconectado</h2><p class="muted">Faça login com Google para usar a plataforma.</p></div>`;
+    toast('Saiu da conta.', 'success');
+  }
+
+  // Profile helpers
+  async function ensureProfile(user){
+    // fetch profile
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error){ console.error(error); toast('Erro ao buscar profile', 'error'); return null; }
+
+    if(!data){
+      // create profile with email/name, role null => ask
+      const nome = user.user_metadata?.full_name || user.email || '';
+      const email = user.email || user.user?.email || '';
+      const insert = { id: user.id, email, nome };
+      const { error: e2 } = await supabase.from('profiles').insert([insert]).select();
+      if(e2 && !e2.message.includes('duplicate key')){ console.error(e2); toast('Erro ao criar profile', 'error'); }
+      // fetch again
+      const { data: d2 } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      return d2 || { id: user.id, email, nome };
+    } else {
+      // update name/email if changed
+      const changes = {};
+      const nome = user.user_metadata?.full_name || user.email || '';
+      const email = user.email || user.user?.email || '';
+      if(data.nome !== nome) changes.nome = nome;
+      if(data.email !== email) changes.email = email;
+      if(Object.keys(changes).length){
+        changes.id = user.id;
+        const { error: e3 } = await supabase.from('profiles').update(changes).eq('id', user.id);
+        if(e3) console.warn('profile update error', e3);
+        // refresh
+        const { data: d3 } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        return d3 || data;
+      }
+      return data;
+    }
+  }
+
+  // If profile.role missing, ask user to choose
+  async function askRoleIfMissing(){
+    if(currentProfile && !currentProfile.role){
+      // modal to choose role
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      modal.innerHTML = `
+        <div class="modal">
+          <h3>Escolha seu papel</h3>
+          <p class="muted-sm">Selecione "vendedor" para criar ingressos ou "comprador" para comprar.</p>
+          <div style="display:flex; gap:8px; margin-top:12px">
+            <button id="role-buyer">Comprador</button>
+            <button id="role-seller" class="primary">Vendedor</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.querySelector('#role-buyer').onclick = async () => {
+        await supabase.from('profiles').update({ role: 'comprador' }).eq('id', currentProfile.id);
+        currentProfile.role = 'comprador';
+        modal.remove();
+        toast('Role definido: comprador', 'success');
+        showRoleUI();
+        renderTab();
+      };
+      modal.querySelector('#role-seller').onclick = async () => {
+        await supabase.from('profiles').update({ role: 'vendedor' }).eq('id', currentProfile.id);
+        currentProfile.role = 'vendedor';
+        modal.remove();
+        toast('Role definido: vendedor', 'success');
+        showRoleUI();
+        renderTab();
+      };
+    }
+  }
+
+  // UI: show/hide based on role
+  function showRoleUI(){
+    el('#tabs').style.display = 'flex';
+    el('#user-block').style.display = 'block';
+    el('#btn-login').style.display = 'none';
+    el('#btn-logout').style.display = 'inline-block';
+    el('#display-nome').innerText = currentProfile?.nome || currentUser?.email || 'Usuário';
+    el('#display-email').innerText = currentProfile?.email || currentUser?.email || '';
+    el('#app-subtitle').innerText = `Logado como ${currentProfile?.role || '—'}`;
+  }
+
+  // Render tab content
+  async function renderTab(){
+    if(!currentProfile){ el('#content').innerHTML = `<div class="card"><p class="muted">Carregando perfil...</p></div>`; return; }
+    if(currentProfile.role === 'vendedor'){
+      if(currentTab === 'create'){
+        renderSellerCreate();
+      } else if(currentTab === 'browse'){
+        // buyers page accessible to seller too
+        renderBrowse();
+      } else {
+        renderSellerMine();
+      }
+    } else { // comprador
+      if(currentTab === 'create'){
+        // buyer sees nothing to create
+        el('#content').innerHTML = `<div class="card"><h3>Acesso do Comprador</h3><p class="muted">Use a aba "Comprar Ingressos" para ver ingressos disponíveis.</p></div>`;
+      } else if(currentTab === 'browse'){
+        renderBrowse();
+      } else {
+        renderBuyerMine();
+      }
+    }
+  }
+
+  /** ---------------
+   * SELLER: create/list/edit/delete
+   * --------------- */
+  function renderSellerCreate(){
+    el('#content').innerHTML = `
+      <div class="grid">
+        <div>
+          <div class="card">
+            <h3>Cadastrar novo ingresso</h3>
+            <form id="form-create">
+              <div style="display:flex; gap:8px">
+                <div style="flex:1">
+                  <label>Nome</label>
+                  <input id="f-nome" placeholder="Nome do evento" required />
+                </div>
+                <div style="width:140px">
+                  <label>Valor (R$)</label>
+                  <input id="f-valor" type="number" step="0.01" min="0" required />
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:8px">
+                <div style="flex:1">
+                  <label>Local (opcional)</label>
+                  <input id="f-local" placeholder="Endereço / local" />
+                </div>
+                <div style="width:140px">
+                  <label>Quantidade</label>
+                  <input id="f-quantidade" type="number" min="1" step="1" value="100" />
+                </div>
+              </div>
+              <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end">
+                <button type="button" id="btn-create" class="primary">Criar ingresso</button>
+              </div>
+            </form>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div id="seller-list" class="card">
+            <h3>Seus ingressos</h3>
+            <div class="list" id="seller-ings"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <h3>Vendas recebidas</h3>
+            <div id="seller-sales" class="list"></div>
+            <div style="padding-top:10px" class="muted-sm">Total comissão recebida: <strong id="seller-total-comm">R$0.00</strong></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    el('#btn-create').addEventListener('click', async ()=>{
+      const nome = el('#f-nome').value.trim();
+      const valor = parseFloat(el('#f-valor').value);
+      const local = el('#f-local').value.trim();
+      let quantidade = parseInt(el('#f-quantidade').value || '0', 10);
+      if(!nome) return toast('Nome obrigatório', 'error');
+      if(isNaN(valor) || valor <= 0) return toast('Valor inválido', 'error');
+      if(isNaN(quantidade) || quantidade < 1) quantidade = 1;
+
+      try {
+        el('#btn-create').disabled = true;
+        const payload = {
+          user_id: currentProfile.id,
+          nome, local, valor,
+          quantidade
+        };
+        const { data, error } = await supabase.from('cact_ingressos').insert([payload]).select().maybeSingle();
+        if(error){ throw error; }
+        toast('Ingresso criado', 'success');
+        el('#f-nome').value = ''; el('#f-local').value=''; el('#f-valor').value=''; el('#f-quantidade').value='100';
+        await loadSellerList();
+      } catch(err){
+        console.error(err);
+        toast('Erro ao criar ingresso: ' + (err.message || err), 'error');
+      } finally {
+        el('#btn-create').disabled = false;
+      }
     });
 
-    listaComprar.innerHTML = html || "Nenhum ingresso disponível";
-}
+    // initial load
+    loadSellerList();
+    loadSellerSales();
+  }
 
-/* ======================== */
-/* MINHAS VENDAS            */
-/* ======================== */
-async function carregarVendas() {
-    const session = await supabase.auth.getSession();
-    const uid = session.data.session.user.id;
+  async function loadSellerList(){
+    const container = el('#seller-ings');
+    if(!container) return;
+    container.innerHTML = '<div class="muted">Carregando...</div>';
+    const { data, error } = await supabase.from('cact_ingressos').select('*').eq('user_id', currentProfile.id).order('created_at', {ascending:false});
+    if(error){ container.innerHTML = `<div class="muted">Erro ao carregar: ${escapeHtml(error.message || '')}</div>`; return; }
+    if(!data || data.length === 0){
+      container.innerHTML = `<div class="muted">Nenhum ingresso criado ainda.</div>`;
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(ing=>{
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.innerHTML = `
+        <div>
+          <div style="font-weight:700">${escapeHtml(ing.nome)}</div>
+          <div class="muted">${escapeHtml(ing.local||'—')} · R$ ${Number(ing.valor).toFixed(2)} · <span class="muted-sm">qtd: ${ing.quantidade}</span></div>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center">
+          <button class="edit" data-id="${ing.id}">Editar</button>
+          <button class="del" data-id="${ing.id}">Excluir</button>
+        </div>
+      `;
+      container.appendChild(item);
+    });
 
-    const { data } = await supabase
-        .from("cact_vendas")
-        .select("*, cact_ingressos(nome)")
-        .eq("ingresso_id.user_id", uid);
+    // attach events
+    container.querySelectorAll('button.edit').forEach(b=>{
+      b.onclick = async () => {
+        const id = b.dataset.id;
+        const ing = (await supabase.from('cact_ingressos').select('*').eq('id', id).maybeSingle()).data;
+        if(!ing) return toast('Ingresso não encontrado', 'error');
+        showEditTicketModal(ing);
+      };
+    });
+    container.querySelectorAll('button.del').forEach(b=>{
+      b.onclick = async () => {
+        const id = b.dataset.id;
+        if(!confirm('Confirma exclusão deste ingresso?')) return;
+        const { error } = await supabase.from('cact_ingressos').delete().eq('id', id).eq('user_id', currentProfile.id);
+        if(error) return toast('Erro ao deletar: ' + error.message, 'error');
+        toast('Ingresso deletado', 'success');
+        await loadSellerList();
+        await loadSellerSales();
+      };
+    });
+  }
 
-    let total = 0;
-    let html = "";
+  function showEditTicketModal(ing){
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Editar ingresso</h3>
+        <div style="display:grid; gap:8px">
+          <label>Nome</label><input id="e-nome" value="${escapeHtml(ing.nome)}" />
+          <label>Local</label><input id="e-local" value="${escapeHtml(ing.local||'')}" />
+          <label>Valor (R$)</label><input id="e-valor" type="number" step="0.01" value="${Number(ing.valor).toFixed(2)}" />
+          <label>Quantidade</label><input id="e-quantidade" type="number" step="1" value="${ing.quantidade}" />
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px">
+          <button id="e-cancel">Cancelar</button>
+          <button id="e-save" class="primary">Salvar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#e-cancel').onclick = () => modal.remove();
+    modal.querySelector('#e-save').onclick = async () => {
+      const nome = modal.querySelector('#e-nome').value.trim();
+      const local = modal.querySelector('#e-local').value.trim();
+      const valor = parseFloat(modal.querySelector('#e-valor').value);
+      const quantidade = parseInt(modal.querySelector('#e-quantidade').value, 10);
+      if(!nome) return toast('Nome obrigatório', 'error');
+      if(isNaN(valor) || valor <= 0) return toast('Valor inválido', 'error');
+      if(isNaN(quantidade) || quantidade < 0) return toast('Quantidade inválida', 'error');
+      const { error } = await supabase.from('cact_ingressos').update({ nome, local, valor, quantidade }).eq('id', ing.id).eq('user_id', currentProfile.id);
+      if(error) { console.error(error); toast('Erro ao atualizar', 'error'); }
+      else { toast('Atualizado', 'success'); modal.remove(); await loadSellerList(); }
+    };
+  }
 
+  async function loadSellerSales(){
+    const container = el('#seller-sales');
+    if(!container) return;
+    container.innerHTML = '<div class="muted">Carregando...</div>';
+    // vendas relacionadas aos ingressos do vendedor, join via ingresso->user_id
+    // first get ingressos ids
+    const { data: ingressos, error: e1 } = await supabase.from('cact_ingressos').select('id').eq('user_id', currentProfile.id);
+    if(e1){ container.innerHTML = '<div class="muted">Erro ao carregar vendas</div>'; return; }
+    const ids = (ingressos||[]).map(r=>r.id);
+    if(ids.length === 0){ container.innerHTML = '<div class="muted">Sem vendas (sem ingressos)</div>'; el('#seller-total-comm').innerText='R$0.00'; return; }
+
+    const { data, error } = await supabase.from('cact_vendas').select('*, cact_ingressos(nome)').in('ingresso_id', ids).order('data', {ascending:false});
+    if(error){ container.innerHTML = '<div class="muted">Erro ao carregar</div>'; return; }
+    if(!data || data.length===0){ container.innerHTML = '<div class="muted">Nenhuma venda ainda.</div>'; el('#seller-total-comm').innerText='R$0.00'; return; }
+
+    container.innerHTML = '';
+    let totalComm = 0;
     data.forEach(v=>{
-        total += v.comissao_valor;
-        html += `
-            <div class="box">
-                <b>${v.cact_ingressos.nome}</b><br>
-                Código: ${v.codigo}<br>
-                Comissão: R$ ${v.comissao_valor}
-            </div>
-        `;
+      totalComm += Number(v.comissao_valor || 0);
+      const it = document.createElement('div');
+      it.className='item';
+      it.innerHTML = `<div>
+        <div style="font-weight:700">${escapeHtml(v.cact_ingressos?.nome || '—')}</div>
+        <div class="muted">Código: ${escapeHtml(v.codigo)} · Pago: R$${Number(v.valor_pago).toFixed(2)}</div>
+      </div>
+      <div class="muted-sm">Comissão: R$ ${Number(v.comissao_valor).toFixed(2)}</div>`;
+      container.appendChild(it);
+    });
+    el('#seller-total-comm').innerText = 'R$' + totalComm.toFixed(2);
+  }
+
+  /** ---------------
+   * BROWSE (public listing)
+   * --------------- */
+  async function renderBrowse(){
+    el('#content').innerHTML = `
+      <div class="card">
+        <h3>Ingressos Disponíveis</h3>
+        <div class="list" id="browse-list"></div>
+      </div>
+    `;
+    await loadBrowse();
+  }
+
+  async function loadBrowse(){
+    const container = el('#browse-list');
+    container.innerHTML = '<div class="muted">Carregando...</div>';
+    const { data, error } = await supabase.from('cact_ingressos').select('*, profiles(nome)').gt('quantidade', 0).order('created_at', {ascending:false});
+    if(error){ container.innerHTML = '<div class="muted">Erro ao carregar</div>'; console.error(error); return; }
+    if(!data || data.length===0){ container.innerHTML = '<div class="muted">Nenhum ingresso disponível.</div>'; return; }
+    container.innerHTML = '';
+    data.forEach(ing=>{
+      const it = document.createElement('div');
+      it.className='item';
+      it.innerHTML = `<div>
+        <div style="font-weight:700">${escapeHtml(ing.nome)}</div>
+        <div class="muted-sm">${escapeHtml(ing.local||'—')} · R$ ${Number(ing.valor).toFixed(2)} · qtd: ${ing.quantidade}</div>
+        <div class="muted-sm">Vendedor: ${escapeHtml(ing.profiles?.nome || '—')}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center">
+        <button class="buy" data-id="${ing.id}" ${ing.quantidade<=0? 'disabled':''}>Comprar</button>
+      </div>`;
+      container.appendChild(it);
     });
 
-    listaVendas.innerHTML = html || "Nenhuma venda ainda";
-    comissaoTotal.innerText = "R$ " + total.toFixed(2);
-}
+    container.querySelectorAll('button.buy').forEach(b=>{
+      b.onclick = async ()=> {
+        const id = b.dataset.id;
+        await buyFlow(id);
+      };
+    });
+  }
 
-/* ======================== */
-/* INICIALIZAÇÃO            */
-/* ======================== */
-window.onload = async () => {
-    if (!checkPoliticas()) return;
+  // Buy flow (buyer or seller can buy)
+  async function buyFlow(ingresso_id){
+    // ask buyer name
+    const buyer_name = prompt('Nome do titular do ingresso (buyer_name):');
+    if(!buyer_name) return toast('Compra cancelada (nome obrigatório).', 'error');
+    try {
+      // fetch ingresso
+      const { data: ing } = await supabase.from('cact_ingressos').select('*').eq('id', ingresso_id).maybeSingle();
+      if(!ing) return toast('Ingresso não encontrado', 'error');
+      if(ing.quantidade <= 0) return toast('Estoque esgotado', 'error');
 
-    const session = await supabase.auth.getSession();
+      // Attempt atomic-ish update: reduce quantidade by 1 only if quantidade > 0
+      // Because supabase-js doesn't support server-side arithmetic shorthand here,
+      // we read current quantidade then attempt update with condition gt('quantidade', 0).
+      // If another concurrent update happened, this update might return 0 rows and we treat as esgotado.
+      const currentQty = Number(ing.quantidade);
+      const newQty = currentQty - 1;
 
-    if (!session.data.session) {
-        loginBox.style.display = "block";
+      const { data: updData, error: updErr } = await supabase
+        .from('cact_ingressos')
+        .update({ quantidade: newQty })
+        .eq('id', ingresso_id)
+        .gt('quantidade', 0)
+        .select();
+
+      if(updErr){ console.error(updErr); throw updErr; }
+      if(!updData || updData.length === 0){
+        return toast('Estoque esgotado (ou outro comprador finalizou).', 'error');
+      }
+
+      // generate unique code
+      const codigo = await generateUniqueCode();
+
+      // compute commission (10%)
+      const valor_pago = Number(ing.valor);
+      const comissao_valor = Math.round(valor_pago * 0.10 * 100) / 100;
+
+      // insert venda
+      const payload = {
+        ingresso_id,
+        comprador_id: currentProfile ? currentProfile.id : null,
+        codigo,
+        valor_pago,
+        comissao_valor
+      };
+      const { data: vendaData, error: vendErr } = await supabase.from('cact_vendas').insert([payload]).select().maybeSingle();
+      if(vendErr){
+        console.error('venda err', vendErr);
+        // rollback stock increment (best effort)
+        await supabase.from('cact_ingressos').update({ quantidade: newQty + 1 }).eq('id', ingresso_id);
+        if(vendErr.code && vendErr.code === '23505'){ // unique violation
+          toast('Código duplicado gerado, tente novamente.', 'error');
+        } else {
+          toast('Erro ao registrar compra: ' + vendErr.message, 'error');
+        }
         return;
+      }
+
+      // show success
+      const buyerInfo = {
+        codigo: vendaData.codigo,
+        valor_pago: Number(vendaData.valor_pago).toFixed(2),
+        comissao_valor: Number(vendaData.comissao_valor).toFixed(2),
+        ingresso_nome: ing.nome
+      };
+      showPurchaseModal(buyerInfo);
+      toast('Compra efetuada — código gerado.', 'success');
+      // refresh browse and mine lists
+      await loadBrowse();
+      await loadBuyerSales();
+      await loadSellerSales();
+    } catch(err){
+      console.error(err);
+      toast('Erro no fluxo de compra: ' + (err.message || err), 'error');
+    }
+  }
+
+  // unique code generation with DB check
+  async function generateUniqueCode(){
+    const attempts = 8;
+    for(let i=0;i<attempts;i++){
+      const code = 'ING-' + randomString(6) + '-' + randomString(6);
+      const { data, error } = await supabase.from('cact_vendas').select('id').eq('codigo', code).maybeSingle();
+      if(error){ console.error('check code error', error); throw error; }
+      if(!data) return code; // unique
+    }
+    // if collisions keep happening (super unlikely), fallback to timestamp
+    return 'ING-' + Date.now() + '-' + Math.random().toString(36).slice(2,8).toUpperCase();
+  }
+  function randomString(len){
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let s = '';
+    for(let i=0;i<len;i++) s += chars[Math.floor(Math.random()*chars.length)];
+    return s;
+  }
+
+  function showPurchaseModal(info){
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Compra concluída</h3>
+        <div style="display:grid; gap:8px">
+          <div><strong>Código:</strong> <span style="font-family:monospace">${escapeHtml(info.codigo)}</span></div>
+          <div><strong>Ingresso:</strong> ${escapeHtml(info.ingresso_nome)}</div>
+          <div><strong>Valor pago:</strong> R$ ${escapeHtml(info.valor_pago)}</div>
+          <div><strong>Comissão:</strong> R$ ${escapeHtml(info.comissao_valor)}</div>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px">
+          <button id="p-close" class="primary">Fechar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#p-close').onclick = () => modal.remove();
+  }
+
+  /** ---------------
+   * BUYER: My purchases
+   * --------------- */
+  async function renderBuyerMine(){
+    el('#content').innerHTML = `
+      <div class="card">
+        <h3>Meus ingressos</h3>
+        <div id="buyer-sales" class="list"></div>
+      </div>
+    `;
+    await loadBuyerSales();
+  }
+
+  async function loadBuyerSales(){
+    const container = el('#buyer-sales') || el('#seller-sales');
+    if(!container) return;
+    container.innerHTML = '<div class="muted">Carregando...</div>';
+    const { data, error } = await supabase.from('cact_vendas').select('*, cact_ingressos(nome, local)').eq('comprador_id', currentProfile.id).order('data', {ascending:false});
+    if(error){ container.innerHTML = '<div class="muted">Erro ao carregar</div>'; return; }
+    if(!data || data.length === 0){ container.innerHTML = '<div class="muted">Nenhuma compra registrada.</div>'; return; }
+    container.innerHTML = '';
+    data.forEach(v=>{
+      const it = document.createElement('div');
+      it.className = 'item';
+      it.innerHTML = `<div>
+        <div style="font-weight:700">${escapeHtml(v.cact_ingressos?.nome || '—')}</div>
+        <div class="muted-sm">Código: ${escapeHtml(v.codigo)} · Pago: R$${Number(v.valor_pago).toFixed(2)} · Data: ${new Date(v.data).toLocaleString()}</div>
+      </div>
+      <div><button class="badge" onclick="navigator.clipboard && navigator.clipboard.writeText('${escapeHtml(v.codigo)}')">Copiar</button></div>`;
+      container.appendChild(it);
+    });
+  }
+
+  /** ---------------
+   * SELLER: My tickets (for "Meus ingressos" tab)
+   * --------------- */
+  async function renderSellerMine(){
+    el('#content').innerHTML = `
+      <div class="card">
+        <h3>Meus ingressos e vendas</h3>
+        <div style="display:flex; gap:12px; align-items:flex-start">
+          <div style="flex:1">
+            <h4>Ingressos</h4>
+            <div id="seller-ings-2" class="list"></div>
+          </div>
+          <div style="width:360px">
+            <h4>Vendas</h4>
+            <div id="seller-sales-2" class="list"></div>
+            <div style="padding-top:10px" class="muted-sm">Total comissão: <strong id="seller-total-comm-2">R$0.00</strong></div>
+          </div>
+        </div>
+      </div>
+    `;
+    // reuse loader functions but different ids
+    const { data, error } = await supabase.from('cact_ingressos').select('*').eq('user_id', currentProfile.id).order('created_at', {ascending:false});
+    const list = el('#seller-ings-2');
+    if(error){ list.innerHTML = '<div class="muted">Erro ao carregar</div>'; return; }
+    if(!data || data.length===0){ list.innerHTML = '<div class="muted">Nenhum ingresso</div>'; } else {
+      list.innerHTML = '';
+      data.forEach(ing=>{
+        const item = document.createElement('div');
+        item.className='item';
+        item.innerHTML = `<div>
+          <div style="font-weight:700">${escapeHtml(ing.nome)}</div>
+          <div class="muted-sm">qtd: ${ing.quantidade} · R$ ${Number(ing.valor).toFixed(2)}</div>
+        </div>
+        <div style="display:flex; gap:8px">
+          <button onclick="(async()=>{ const e = confirm('Excluir?'); if(e){ await supabase.from('cact_ingressos').delete().eq('id','${ing.id}'); toast('Deletado','success'); location.reload(); }})();">Excluir</button>
+        </div>`;
+        list.appendChild(item);
+      });
     }
 
-    dashboard.style.display = "block";
-    abrirAba("abaComprar");
+    // vendas
+    const ids = (data||[]).map(i=>i.id);
+    const container = el('#seller-sales-2');
+    if(ids.length===0){ container.innerHTML = '<div class="muted">Sem vendas</div>'; el('#seller-total-comm-2').innerText='R$0.00'; return; }
+    const { data: vendas, error: e2 } = await supabase.from('cact_vendas').select('*, cact_ingressos(nome)').in('ingresso_id', ids).order('data', {ascending:false});
+    if(e2){ container.innerHTML = '<div class="muted">Erro</div>'; return; }
+    if(!vendas || vendas.length===0){ container.innerHTML = '<div class="muted">Nenhuma venda</div>'; el('#seller-total-comm-2').innerText='R$0.00'; return; }
+    container.innerHTML = '';
+    let total=0;
+    vendas.forEach(v=>{
+      total += Number(v.comissao_valor || 0);
+      const it = document.createElement('div');
+      it.className='item';
+      it.innerHTML = `<div><div style="font-weight:700">${escapeHtml(v.cact_ingressos?.nome||'—')}</div><div class="muted-sm">Código: ${escapeHtml(v.codigo)} · Pago: R$${Number(v.valor_pago).toFixed(2)}</div></div><div class="muted-sm">Comissão: R$${Number(v.comissao_valor).toFixed(2)}</div>`;
+      container.appendChild(it);
+    });
+    el('#seller-total-comm-2').innerText = 'R$' + total.toFixed(2);
+  }
 
-    carregarComprar();
-    carregarVendas();
-};
-</script>
+  // Initialization: check session
+  async function init(){
+    initUI();
+    showPolicyIfNeeded();
 
+    // handle redirect after OAuth
+    const { data: { session } } = await supabase.auth.getSession();
+    // Listen for auth changes too
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      // console.log('auth state change', event, session);
+      if(session && session.user){
+        currentUser = session.user;
+        await onUserSignedIn(session.user);
+      } else {
+        // logged out
+        // handled by onLogoutClicked maybe
+      }
+    });
+
+    if(session && session.user){
+      currentUser = session.user;
+      await onUserSignedIn(session.user);
+    } else {
+      // no session; show login button
+      el('#tabs').style.display = 'none';
+    }
+  }
+
+  async function onUserSignedIn(user){
+    try{
+      currentUser = user;
+      // ensure profile exists
+      currentProfile = await ensureProfile(user);
+      // if profile exists but no role, ask
+      await askRoleIfMissing();
+      showRoleUI();
+      // default tab and render
+      renderTab();
+    } catch(err){
+      console.error('onUserSignedIn err', err);
+      toast('Erro ao processar login: '+(err.message||err), 'error');
+    }
+  }
+
+  // Run init
+  init();
+
+  // expose some functions for debugging in console (optional)
+  window._cact = {
+    supabase, generateUniqueCode
+  };
+  </script>
 </body>
 </html>
+
+    </script>
+</body>
+</html>
+
