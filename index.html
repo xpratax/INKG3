@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<!--não a nada para besta ver no meu codigo fonte🖕  -->
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INK#3</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        padding: 20px;
+    }
+    .box {
+        background: #1a1a1a;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 12px;
+        box-shadow: 0 0 10px #000;
+    }
+    input, button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 8px;
+        border: none;
+    }
+    button {
+        background: #32cd32;
+        color: #000;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    button:hover {
+        background: #2daa2d;
+    }
+    a {
+        color: #32cd32;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    /* POLÍTICAS - modal */
+    #politicasModal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.85);
+        padding: 20px;
+        overflow-y: auto;
+    }
+    #politicasContent {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 12px;
+        max-width: 700px;
+        margin: auto;
+        margin-top: 40px;
+    }
+</style>
+</head>
+<body>
+
+<h1>IG3k 🎫</h1>
+<p>Plataforma de vendas + comissionamento de ingressos.</p>
+
+<!-- CAIXA DE POLÍTICAS -->
+<div id="politicasBox" class="box" style="display:none;">
+    <h2>📜 Políticas de Privacidade</h2>
+    <p>Para continuar utilizando a plataforma, você deve aceitar as políticas.</p>
+
+    <button onclick="abrirPoliticas()">Ler Políticas Completas</button>
+    <button onclick="aceitarPoliticas()">Aceitar e Continuar ✔</button>
+</div>
+
+<!-- MODAL POLÍTICAS -->
+<div id="politicasModal">
+    <div id="politicasContent">
+        <h2>📜 Políticas de Privacidade — Cact Ingressos</h2>
+
+        <p>
+        Esta plataforma registra as vendas de ingressos associadas ao seu usuário,
+        incluindo tipo do ingresso, valor, data e comissão gerada.  
+        Sua comissão é variável e **NÃO é permanente**, podendo acabar a qualquer momento sem aviso prévio.
+        </p>
+
+        <h3>📌 Coleta de Dados</h3>
+        <p>
+            • Nome e email cadastrados<br>
+            • Ingressos vendidos<br>
+            • Comissão gerada em cada venda
+        </p>
+
+        <h3>📌 Uso dos Dados</h3>
+        <p>
+            Os dados são usados exclusivamente para:  
+            • Exibir suas vendas  
+            • Calcular sua comissão  
+            • Melhorar o sistema
+        </p>
+
+        <h3>📌 Comissão não permanente</h3>
+        <p>
+            A comissão pode existir por tempo limitado.  
+            Futuramente poderá ser removida, reduzida ou substituída, sem compensação ou obrigação posterior.
+        </p>
+
+        <h3>📌 Exclusão de Dados</h3>
+        <p>
+            Você pode solicitar remoção do seu usuário e dados a qualquer momento.
+        </p>
+
+        <button onclick="fecharPoliticas()">Fechar</button>
+    </div>
+</div>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box" style="display:none;">
+    <h2>Entrar</h2>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginSenha" placeholder="Senha">
+    <button onclick="login()">Entrar</button>
+    <p>Não tem conta? <a href="#" onclick="showCadastro()">Criar conta</a></p>
+</div>
+
+<!-- CADASTRO -->
+<div id="cadastroBox" class="box" style="display:none;">
+    <h2>Criar Conta</h2>
+    <input type="text" id="cadNome" placeholder="Nome completo">
+    <input type="email" id="cadEmail" placeholder="Email">
+    <input type="password" id="cadSenha" placeholder="Senha">
+    <button onclick="cadastro()">Cadastrar</button>
+    <p>Já tem conta? <a href="#" onclick="showLogin()">Entrar</a></p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="box" style="display:none;">
+    <h2>Bem-vindo, <span id="userNome"></span> 👋</h2>
+    <button onclick="logout()">Sair</button>
+
+    <h3>Seus ingressos vendidos</h3>
+    <div id="listaIngressos">Carregando...</div>
+
+    <h3>Total em comissão 💸</h3>
+    <p id="comissaoTotal">Calculando...</p>
+</div>
+
+<script>
+/* ============================ */
+/* ===== SUPABASE CONFIG ====== */
+/* ============================ */
+
+const supabase = supabase.createClient(
+    "https://nmbslklretjxqowhvotr.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc"
+);
+
+/* ============================ */
+/* ===== SISTEMA POLÍTICAS ==== */
+/* ============================ */
+
+function checkPoliticas() {
+    const aceito = localStorage.getItem("politicasAceitas");
+    if (!aceito) {
+        document.getElementById("politicasBox").style.display = "block";
+        return false;
+    }
+    return true;
+}
+
+function aceitarPoliticas() {
+    localStorage.setItem("politicasAceitas", "true");
+    alert("Obrigado! Agora você pode usar a plataforma.");
+    location.reload();
+}
+
+function abrirPoliticas() {
+    document.getElementById("politicasModal").style.display = "block";
+}
+
+function fecharPoliticas() {
+    document.getElementById("politicasModal").style.display = "none";
+}
+
+/* ============================ */
+/* ======= LOGIN / CADASTRO === */
+/* ============================ */
+
+function showLogin() {
+    document.getElementById("loginBox").style.display = "block";
+    document.getElementById("cadastroBox").style.display = "none";
+}
+function showCadastro() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("cadastroBox").style.display = "block";
+}
+
+async function login() {
+    const email = document.getElementById("loginEmail").value;
+    const senha = document.getElementById("loginSenha").value;
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password: senha
+    });
+
+    if (error) return alert(error.message);
+    location.reload();
+}
+
+async function cadastro() {
+    const nome = document.getElementById("cadNome").value;
+    const email = document.getElementById("cadEmail").value;
+    const senha = document.getElementById("cadSenha").value;
+
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password: senha
+    });
+
+    if (error) return alert(error.message);
+
+    await supabase.from("profiles").insert({
+        id: data.user.id,
+        nome: nome
+    });
+
+    alert("Conta criada! Agora faça login.");
+    showLogin();
+}
+
+/* ============================ */
+/* ====== DASHBOARD =========== */
+/* ============================ */
+
+async function carregarDashboard() {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session.session) {
+        showLogin();
+        return;
+    }
+
+    document.getElementById("dashboard").style.display = "block";
+
+    const userId = session.session.user.id;
+
+    const { data: perfil } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+    document.getElementById("userNome").innerText = perfil?.nome || "Usuário";
+
+    const { data: ingressos, error } = await supabase
+        .from("cact_ingressos")
+        .select("*")
+        .eq("user_id", userId);
+
+    if (error) {
+        document.getElementById("listaIngressos").innerText = "Erro ao carregar";
+        return;
+    }
+
+    if (!ingressos.length) {
+        document.getElementById("listaIngressos").innerHTML = "<p>Nenhuma venda ainda...</p>";
+    } else {
+        let html = "";
+        ingressos.forEach(i => {
+            html += `<p>🎫 ${i.tipo} — R$ ${i.valor} — ${i.data}</p>`;
+        });
+        document.getElementById("listaIngressos").innerHTML = html;
+    }
+
+    let total = 0;
+    ingressos.forEach(i => total += i.comissao_valor);
+
+    document.getElementById("comissaoTotal").innerText = "R$ " + total.toFixed(2);
+}
+
+async function logout() {
+    await supabase.auth.signOut();
+    location.reload();
+}
+
+/* ============================ */
+/* ===== INIT ================= */
+/* ============================ */
+
+window.onload = async () => {
+    if (!checkPoliticas()) return;
+    carregarDashboard();
+};
+</script>
+
+</body>
+</html>
