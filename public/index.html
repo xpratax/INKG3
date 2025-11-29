@@ -1,487 +1,175 @@
 <!--não a nada para besta ver no meu codigo fonte🖕  -->
-<!doctype html>
-<html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-br">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>IG3k — Plataforma de Ingressos</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Ingressos CACT</title>
 
-<!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-
+<!-- Estilo básico -->
 <style>
-  :root{font-family:Inter,system-ui,Arial,sans-serif}
-  body{margin:0;background:#071022;color:#e6eef8;padding:18px}
-  .wrap{max-width:1100px;margin:0 auto}
-  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-  h1{margin:0;font-size:20px}
-  .muted{color:#9fb0d8;font-size:13px}
-  .card{background:#07142a;padding:16px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,.6);margin-bottom:12px}
-  .row{display:flex;gap:12px;align-items:center}
-  input,select,textarea,button{font-family:inherit}
-  input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #11314a;background:#031025;color:#dff0ff}
-  button{padding:10px 12px;border-radius:10px;border:none;cursor:pointer}
-  .btn-primary{background:#2563eb;color:white}
-  .btn-ghost{background:transparent;border:1px solid #255b7a;color:#9fd0ff}
-  nav{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-  .tab{padding:8px 12px;border-radius:8px;background:#04122a;color:#9fd0ff;cursor:pointer}
-  .tab.active{background:#1f6feb;color:white;font-weight:700}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-  .ticket{background:#031627;padding:12px;border-radius:8px}
-  .small{font-size:13px;color:#9fb0d8}
-  code{background:#081226;padding:4px;border-radius:6px;color:#9fd0ff}
-  .right{margin-left:auto}
-  footer{margin-top:18px;color:#90a4c0;font-size:13px}
-  .hidden{display:none}
-  .danger{background:#ef4444;color:white}
+    body {
+        font-family: Arial, sans-serif;
+        background: #111;
+        color: #fff;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    button {
+        padding: 12px 18px;
+        border: none;
+        background: #00d4ff;
+        color: black;
+        font-weight: bold;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 10px 0;
+    }
+    button:hover { background: #0ff; }
+
+    /* MODAL */
+    .modal-bg {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal {
+        background: #222;
+        padding: 25px;
+        border-radius: 12px;
+        max-width: 600px;
+        border: 1px solid #555;
+    }
+
+    .close {
+        float: right;
+        cursor: pointer;
+        font-size: 22px;
+    }
+
+    .hidden { display: none; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>IG3k — Plataforma de Ingressos</h1>
-      <div class="muted">Comissão plataforma: <strong>10%</strong> — pode mudar no futuro</div>
-    </div>
-    <div class="row">
-      <div id="userBadge" class="small muted">não autenticado</div>
-      <button id="btnSignIn" class="btn-primary">Entrar</button>
-      <button id="btnSignOut" class="btn-ghost hidden">Sair</button>
-    </div>
-  </header>
 
-  <!-- políticas -->
-  <div id="politicasCard" class="card" style="display:none">
-    <h3>Políticas & Termos</h3>
-    <p class="small">Você precisa aceitar nossas políticas para usar a plataforma.</p>
-    <div class="row" style="margin-top:10px">
-      <button class="btn-ghost" onclick="openPoliticas()">Ler políticas</button>
-      <button class="btn-primary" onclick="acceptPolicies()">Aceitar e continuar</button>
+<h1>Sistema de Ingressos CACT</h1>
+
+<!-- BOTÃO POLÍTICAS -->
+<button onclick="openPoliticas()">📄 Ver Políticas</button>
+
+<!-- BOTÃO REGISTRAR VENDA -->
+<button onclick="registrarVenda()">Registrar Venda de Ingresso</button>
+
+<hr>
+<h3>Total vendido:</h3>
+<p id="vendas">0</p>
+
+<h3>Minha comissão ganha:</h3>
+<p id="comissao">R$ 0,00</p>
+
+<!-- MODAL DE POLÍTICAS -->
+<div class="modal-bg" id="politicasModal">
+    <div class="modal">
+        <span class="close" onclick="fecharPoliticas()">×</span>
+        <h2>Políticas de Privacidade & Comissão</h2>
+
+        <p>
+            Este sistema CACT permite registrar vendas de ingressos.
+            Cada ingresso gera comissão fixa baseada no valor vendido.
+        </p>
+
+        <p>
+            Você receberá <strong>R$0,10 de comissão a cada R$1,00 vendido</strong>.
+        </p>
+
+        <p>
+            A comissão <strong>não é permanente</strong>.  
+            Pode ser encerrada a qualquer momento sem aviso prévio.
+        </p>
+
+        <button onclick="aceitarPoliticas()">Aceitar Políticas</button>
+        <button onclick="fecharPoliticas()">Fechar</button>
     </div>
-  </div>
-
-  <!-- modal políticas -->
-  <div id="politicasModal" class="card hidden" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,12,0.8)">
-    <div style="width:90%;max-width:800px;background:#021426;padding:18px;border-radius:10px">
-      <h2>Política de Privacidade — IG3k</h2>
-      <p class="small">
-        Registramos vendas associadas ao seu usuário: nome, e-mail, ingressos, valor e comissão.
-        A comissão é temporária e pode ser removida ou alterada no futuro.
-      </p>
-      <p class="small">Você pode solicitar exclusão de dados a qualquer momento.</p>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-        <button onclick="closePoliticas()">Fechar</button>
-        <button class="btn-primary" onclick="acceptPolicies()">Aceitar e continuar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- autenticação / cadastro simples -->
-  <div id="authCard" class="card">
-    <div id="authSignedOut">
-      <h3>Entrar / Criar conta</h3>
-      <div style="display:grid;gap:8px;max-width:420px">
-        <input id="email" placeholder="Email" type="email"/>
-        <input id="password" placeholder="Senha" type="password"/>
-        <div style="display:flex;gap:8px">
-          <button class="btn-primary" onclick="signIn()">Entrar</button>
-          <button class="btn-ghost" onclick="signUp()">Criar conta</button>
-        </div>
-        <div class="small muted">ou entre com Google (via Supabase OAuth)</div>
-      </div>
-    </div>
-
-    <div id="authSignedIn" class="hidden">
-      <h3>Conta</h3>
-      <div class="small">Logado como <strong id="accountName"></strong></div>
-    </div>
-  </div>
-
-  <!-- navegação interna -->
-  <nav id="mainNav" class="card" style="display:none">
-    <div id="tabCreate" class="tab active" onclick="showTab('create')">➕ Criar ingresso</div>
-    <div id="tabBrowse" class="tab" onclick="showTab('browse')">🛒 Comprar ingressos</div>
-    <div id="tabMine" class="tab" onclick="showTab('mine')">📦 Meus ingressos</div>
-    <div class="right small muted">Seu painel</div>
-  </nav>
-
-  <!-- conteudo: create / browse / mine -->
-  <section id="create" class="card">
-    <h3>Criar ingresso</h3>
-    <div style="max-width:700px;display:grid;gap:8px">
-      <input id="t_name" placeholder="Nome do ingresso / evento"/>
-      <input id="t_location" placeholder="Local (opcional)"/>
-      <input id="t_price" placeholder="Preço (R$)" type="number" step="0.01" value="0"/>
-      <input id="t_qty" placeholder="Quantidade" type="number" value="100"/>
-      <div style="display:flex;gap:8px">
-        <button class="btn-primary" onclick="createTicket()">Criar ingresso</button>
-        <button onclick="resetCreate()">Reset</button>
-      </div>
-      <div id="createMsg" class="small muted"></div>
-    </div>
-  </section>
-
-  <section id="browse" class="card hidden">
-    <h3>Ingressos disponíveis</h3>
-    <div class="small muted">Clique em Comprar para adquirir — pagamento simulado (protótipo)</div>
-    <div id="ticketsGrid" class="grid" style="margin-top:12px"></div>
-  </section>
-
-  <section id="mine" class="card hidden">
-    <h3>Meus ingressos — Compras & Vendas</h3>
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:260px">
-        <h4>Vendas (como vendedor)</h4>
-        <div id="mySales" class="small muted">Carregando...</div>
-      </div>
-      <div style="flex:1;min-width:260px">
-        <h4>Compras (como comprador)</h4>
-        <div id="myPurchases" class="small muted">Carregando...</div>
-      </div>
-    </div>
-    <div style="margin-top:12px">
-      <strong>Total recebido em comissão (plataforma):</strong> <span id="platformTotal" class="small muted">R$ 0.00</span>
-    </div>
-  </section>
-
-  <footer class="muted">© IG3k • protótipo — substitua as chaves Supabase no topo do script se necessário</footer>
 </div>
 
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-/* ===========================
-   Configuração Supabase
-   Substitua se quiser outra chave/URL.
-   =========================== */
-const SUPABASE_URL = "https://nmbslklretjxqowhvotr.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc";
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON);
+    /* ===========================
+       CONFIG DO SUPABASE
+    ============================ */
+    const SUPABASE_URL = "COLOQUE_SUA_URL_AQUI";
+    const SUPABASE_KEY = "COLOQUE_SUA_ANON_KEY_AQUI";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ===========================
-   Util: geração de código único
-   =========================== */
-function genCode() {
-  const part = ()=> Math.random().toString(36).substring(2,8).toUpperCase();
-  return `ING-${part()}-${part()}`;
-}
+    /* ===========================
+        SISTEMA DE POLÍTICAS
+    ============================ */
+    function openPoliticas() {
+        document.getElementById("politicasModal").style.display = "flex";
+    }
 
-async function ensureUniqueCode() {
-  for (let i=0;i<12;i++) {
-    const c = genCode();
-    const { data } = await supabase.from('cact_vendas').select('id').eq('codigo', c).limit(1);
-    if (!data || data.length === 0) return c;
-  }
-  return genCode() + "-" + Date.now();
-}
+    function fecharPoliticas() {
+        document.getElementById("politicasModal").style.display = "none";
+    }
 
-/* ===========================
-   UI helpers
-   =========================== */
-function show(el){ document.getElementById(el).classList.remove('hidden'); }
-function hide(el){ document.getElementById(el).classList.add('hidden'); }
-function showTab(tab){
-  ['create','browse','mine'].forEach(t=>{
-    document.getElementById(t).classList.add('hidden');
-    document.getElementById('tab'+ (t.charAt(0).toUpperCase()+t.slice(1))).classList.remove('active').className = document.getElementById('tab'+ (t.charAt(0).toUpperCase()+t.slice(1))).className.replace(' active','');
-  });
-  document.getElementById(tab).classList.remove('hidden');
-  document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
-}
+    function aceitarPoliticas() {
+        localStorage.setItem("politicasAceitas", "sim");
+        fecharPoliticas();
+        alert("Você aceitou as políticas.");
+    }
 
-/* ===========================
-   Políticas
-   =========================== */
-function checkPolicies() {
-  const ok = localStorage.getItem('ig3k_politicas') === 'true';
-  if (!ok) {
-    document.getElementById('politicasCard').style.display = 'block';
-  } else {
-    document.getElementById('politicasCard').style.display = 'none';
-  }
-}
-function openPoliticas(){ document.getElementById('politicasModal').classList.remove('hidden'); }
-function closePoliticas(){ document.getElementById('politicasModal').classList.add('hidden'); }
-function acceptPolicies(){ localStorage.setItem('ig3k_politicas','true'); document.getElementById('politicasCard').style.display='none'; }
+    // abrir automaticamente se não foi aceito ainda
+    if (localStorage.getItem("politicasAceitas") !== "sim") {
+        setTimeout(openPoliticas, 300);
+    }
 
-/* ===========================
-   Auth
-   =========================== */
-const btnSignIn = document.getElementById('btnSignIn');
-const btnSignOut = document.getElementById('btnSignOut');
-const userBadge = document.getElementById('userBadge');
-const authSignedOut = document.getElementById('authSignedOut');
-const authSignedIn = document.getElementById('authSignedIn');
-const accountName = document.getElementById('accountName');
+    /* ===========================
+        SISTEMA DE INGRESSOS (CACT)
+    ============================ */
 
-btnSignIn.onclick = async ()=> {
-  // abre modal de login simples (usamos o formulário existente)
-  // se tiver sessão ativa, não faz nada
-  const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    alert("Você já está logado.");
-    return;
-  }
-  // rolar até o form
-  window.scrollTo({top: document.getElementById('authCard').offsetTop - 40, behavior:'smooth'});
-  // mostra o auth card (já visível)
-};
+    let totalVendas = 0;
+    let totalComissao = 0;
 
-btnSignOut.onclick = async ()=> {
-  await supabase.auth.signOut();
-  location.reload();
-};
+    async function registrarVenda() {
+        const valor = Number(prompt("Valor do ingresso vendido (R$):"));
 
-async function signIn(){
-  const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('password').value;
-  if (!email || !pass) return alert('Preencha email e senha.');
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-  if (error) return alert('Erro: '+error.message);
-  location.reload();
-}
+        if (!valor || valor <= 0) {
+            alert("Valor inválido.");
+            return;
+        }
 
-async function signUp(){
-  const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('password').value;
-  if (!email || !pass) return alert('Preencha email e senha.');
-  const { data, error } = await supabase.auth.signUp({ email, password: pass });
-  if (error) return alert('Erro: '+error.message);
-  // optionally create profile row
-  if (data?.user?.id) {
-    await supabase.from('profiles').upsert({ id: data.user.id, nome: email.split('@')[0] });
-  }
-  alert('Conta cadastrada. Verifique seu e-mail se houver confirmação necessária e faça login.');
-}
+        const comissaoGanha = valor * 0.10;
 
-/* ===========================
-   Tickets: criar / listar / comprar
-   =========================== */
+        totalVendas += valor;
+        totalComissao += comissaoGanha;
 
-async function createTicket(){
-  const name = document.getElementById('t_name').value.trim();
-  const location = document.getElementById('t_location').value.trim() || null;
-  const price = parseFloat(document.getElementById('t_price').value || 0);
-  const qty = parseInt(document.getElementById('t_qty').value || 0);
-  const createMsg = document.getElementById('createMsg');
+        // atualiza tela
+        document.getElementById("vendas").innerText = "R$ " + totalVendas.toFixed(2);
+        document.getElementById("comissao").innerText = "R$ " + totalComissao.toFixed(2);
 
-  if (!name) return alert('Coloque um nome para o ingresso.');
-  if (qty < 0) return alert('Quantidade inválida.');
+        // envia pro banco Supabase
+        await db.from("ingressos").insert({
+            valor: valor,
+            comissao: comissaoGanha,
+            data: new Date().toISOString()
+        });
 
-  createMsg.textContent = 'Criando...';
-
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session) { createMsg.textContent='Faça login primeiro.'; return; }
-  const userId = session.session.user.id;
-
-  const payload = {
-    user_id: userId,
-    nome: name,
-    local: location,
-    valor: price,
-    quantidade: qty
-  };
-
-  const { error } = await supabase.from('cact_ingressos').insert([payload]);
-  if (error) {
-    createMsg.textContent = 'Erro: ' + error.message;
-    return;
-  }
-  createMsg.textContent = 'Ingresso criado com sucesso!';
-  document.getElementById('t_name').value=''; document.getElementById('t_location').value=''; document.getElementById('t_price').value='0'; document.getElementById('t_qty').value='100';
-  await loadBrowse(); await loadMine();
-  setTimeout(()=>createMsg.textContent='',2500);
-}
-
-/* carregar lista pública de ingressos para compra */
-async function loadBrowse(){
-  const { data, error } = await supabase
-    .from('cact_ingressos')
-    .select('id,user_id,nome,local,valor,quantidade')
-    .order('created_at',{ascending:false});
-
-  const grid = document.getElementById('ticketsGrid');
-  grid.innerHTML = '';
-  if (error) { grid.innerHTML = '<div class="small muted">Erro ao carregar ingressos.</div>'; console.error(error); return; }
-  if (!data || data.length === 0) { grid.innerHTML = '<div class="small muted">Nenhum ingresso disponível.</div>'; return; }
-
-  data.forEach(t=>{
-    const div = document.createElement('div');
-    div.className = 'ticket';
-    div.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <strong>${escapeHtml(t.nome)}</strong>
-        <div class="small">R$ ${Number(t.valor).toFixed(2)}</div>
-      </div>
-      <div class="small muted" style="margin:8px 0">${t.local || '—'}</div>
-      <div class="small muted">Disponível: ${t.quantidade}</div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button ${t.quantidade <= 0 ? 'disabled' : ''} onclick="buyFlow('${t.id}','${t.nome}')">Comprar</button>
-        <button class="btn-ghost" onclick="viewSeller('${t.user_id}')">Vendedor</button>
-      </div>
-    `;
-    grid.appendChild(div);
-  });
-}
-
-/* comprar: fluxo com redução de estoque atômica */
-async function buyFlow(ticketId, ticketName){
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session) {
-    alert('Faça login para comprar.');
-    return;
-  }
-  const user = session.session.user;
-  const buyerName = prompt('Nome do titular do ingresso (será exibido):', user.user_metadata?.full_name || user.email);
-  if (!buyerName) return;
-
-  // 1) tentar reduzir estoque atomically
-  const { data:upd, error:updErr } = await supabase
-    .from('cact_ingressos')
-    .update({ quantidade: supabase.raw('quantidade - 1') })
-    .match({ id: ticketId })
-    .gt('quantidade', 0)
-    .select()
-    .limit(1);
-
-  if (updErr) { alert('Erro ao atualizar estoque: ' + updErr.message); console.error(updErr); return; }
-  if (!upd || upd.length === 0) {
-    alert('Estoque esgotado.');
-    await loadBrowse();
-    return;
-  }
-
-  // 2) gerar código único
-  const code = await ensureUniqueCode();
-
-  // 3) descobrir preço
-  const { data: rows } = await supabase.from('cact_ingressos').select('valor').eq('id', ticketId).limit(1);
-  const price = rows && rows[0] ? parseFloat(rows[0].valor) : 0;
-  const platform_fee = + (price * 0.10).toFixed(2);
-
-  // 4) inserir venda
-  const payload = {
-    ingresso_id: ticketId,
-    comprador_id: user.id,
-    codigo: code,
-    valor_pago: price,
-    comissao_valor: platform_fee,
-    data: new Date().toISOString()
-  };
-
-  const { error:insErr } = await supabase.from('cact_vendas').insert([payload]);
-  if (insErr) {
-    // reverter estoque
-    await supabase.from('cact_ingressos').update({ quantidade: supabase.raw('quantidade + 1') }).eq('id', ticketId);
-    alert('Erro ao registrar compra: ' + insErr.message);
-    await loadBrowse(); await loadMine();
-    return;
-  }
-
-  alert(`Compra concluída!\nEvento: ${ticketName}\nTitular: ${buyerName}\nCódigo: ${code}\nValor: R$ ${price.toFixed(2)}\nTaxa plataforma: R$ ${platform_fee.toFixed(2)}`);
-  await loadBrowse(); await loadMine();
-}
-
-/* carregar minhas vendas e compras */
-async function loadMine(){
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session) {
-    document.getElementById('mySales').innerHTML = '<div class="small muted">Faça login para ver.</div>';
-    document.getElementById('myPurchases').innerHTML = '<div class="small muted">Faça login para ver.</div>';
-    return;
-  }
-  const uid = session.session.user.id;
-
-  // vendas onde eu sou vendedor (juntar ingresso + venda)
-  const { data: sales } = await supabase
-    .from('cact_vendas')
-    .select('id,codigo,valor_pago,comissao_valor,data,ingresso_id ( id, nome )')
-    .eq('ingresso_id.user_id', uid)
-    .order('data',{ascending:false});
-
-  // alternativa caso a relação não funcione em seu schema:
-  // selecionar vendas e buscar ingresso por id depois — aqui assumimos que a view funciona.
-
-  let salesHtml = '';
-  if (!sales || sales.length === 0) salesHtml = '<div class="small muted">Nenhuma venda como vendedor.</div>';
-  else {
-    sales.forEach(s=>{
-      const nome = s.ingresso_id?.nome || '—';
-      salesHtml += `<div class="small muted" style="padding:6px 4px;border-bottom:1px solid #021427">
-        <strong>${escapeHtml(nome)}</strong><br>
-        Código: <code>${escapeHtml(s.codigo)}</code> • Valor R$ ${Number(s.valor_pago).toFixed(2)} • Comissão R$ ${Number(s.comissao_valor).toFixed(2)} • ${new Date(s.data).toLocaleString()}
-      </div>`;
-    });
-  }
-  document.getElementById('mySales').innerHTML = salesHtml;
-
-  // compras (onde comprador_id = uid)
-  const { data: purchases } = await supabase
-    .from('cact_vendas')
-    .select('id,codigo,valor_pago,comissao_valor,data,ingresso_id ( id, nome )')
-    .eq('comprador_id', uid)
-    .order('data',{ascending:false});
-
-  let purHtml = '';
-  if (!purchases || purchases.length === 0) purHtml = '<div class="small muted">Nenhuma compra encontrada.</div>';
-  else {
-    purchases.forEach(p=>{
-      const nome = p.ingresso_id?.nome || '—';
-      purHtml += `<div class="small muted" style="padding:6px 4px;border-bottom:1px solid #021427">
-        <strong>${escapeHtml(nome)}</strong><br>
-        Código: <code>${escapeHtml(p.codigo)}</code> • Valor R$ ${Number(p.valor_pago).toFixed(2)} • Taxa R$ ${Number(p.comissao_valor).toFixed(2)} • ${new Date(p.data).toLocaleString()}
-      </div>`;
-    });
-  }
-  document.getElementById('myPurchases').innerHTML = purHtml;
-
-  // total da plataforma (soma de todas as comissões) — apenas demonstrativo (requer permissões no DB)
-  const { data: totalRes } = await supabase.from('cact_vendas').select('comissao_valor');
-  let tot = 0;
-  if (totalRes) totalRes.forEach(r => tot += Number(r.comissao_valor||0));
-  document.getElementById('platformTotal').innerText = 'R$ ' + tot.toFixed(2);
-}
-
-/* ver info do vendedor (simples) */
-function viewSeller(uid){
-  alert('Vendedor: ' + uid + '\n(abra painel do vendedor para mais informações)');
-}
-
-/* escape safe */
-function escapeHtml(s){ if (!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;"); }
-
-/* ===========================
-   Inicialização: sessão, UI
-   =========================== */
-async function init(){
-  checkPolicies();
-  // auth state
-  const { data } = await supabase.auth.getSession();
-  if (data.session) {
-    document.getElementById('userBadge').textContent = data.session.user.email || 'usuario';
-    document.getElementById('btnSignIn').classList.add('hidden');
-    document.getElementById('btnSignOut').classList.remove('hidden');
-    document.getElementById('authSignedOut').classList.add('hidden');
-    document.getElementById('authSignedIn').classList.remove('hidden');
-    document.getElementById('accountName').textContent = data.session.user.user_metadata?.full_name || data.session.user.email;
-    document.getElementById('mainNav').style.display = 'flex';
-    // load data
-    await loadBrowse();
-    await loadMine();
-  } else {
-    document.getElementById('userBadge').textContent = 'não autenticado';
-    document.getElementById('btnSignIn').classList.remove('hidden');
-    document.getElementById('btnSignOut').classList.add('hidden');
-    document.getElementById('authSignedOut').classList.remove('hidden');
-    document.getElementById('authSignedIn').classList.add('hidden');
-    document.getElementById('mainNav').style.display = 'none';
-  }
-
-  // listen auth changes
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    init();
-  });
-}
-
-window.addEventListener('load', init);
+        alert("Venda registrada com sucesso!");
+    }
 </script>
+
 </body>
 </html>
