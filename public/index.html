@@ -1,174 +1,300 @@
 <!--não a nada para besta ver no meu codigo fonte🖕  -->
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema de Ingressos CACT</title>
+<title>Cact Ingressos</title>
 
-<!-- Estilo básico -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
     body {
-        font-family: Arial, sans-serif;
         background: #111;
         color: #fff;
-        margin: 0;
+        font-family: Arial;
         padding: 20px;
     }
-
-    h1 {
-        text-align: center;
+    .box {
+        background: #1b1b1b;
+        padding: 20px;
+        border-radius: 12px;
         margin-bottom: 20px;
+        box-shadow: 0 0 10px #000;
     }
-
-    button {
-        padding: 12px 18px;
+    input, button, select {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
         border: none;
-        background: #00d4ff;
-        color: black;
-        font-weight: bold;
         border-radius: 8px;
-        cursor: pointer;
-        margin: 10px 0;
     }
-    button:hover { background: #0ff; }
-
-    /* MODAL */
-    .modal-bg {
+    button {
+        background: #00ff88;
+        color: #000;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    button:hover {
+        background: #00cc66;
+    }
+    .abaBtn {
+        width: 32%;
+        margin: 0.5%;
+        display: inline-block;
+        background: #333;
+        color: #fff;
+    }
+    #politicasModal {
         display: none;
+        background: rgba(0,0,0,0.85);
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7);
-        justify-content: center;
-        align-items: center;
+        padding: 20px;
+        overflow-y: auto;
     }
-
-    .modal {
-        background: #222;
-        padding: 25px;
-        border-radius: 12px;
-        max-width: 600px;
-        border: 1px solid #555;
+    #politicasContent {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 10px;
+        max-width: 700px;
+        margin: auto;
+        margin-top: 40px;
     }
-
-    .close {
-        float: right;
-        cursor: pointer;
-        font-size: 22px;
-    }
-
-    .hidden { display: none; }
 </style>
 </head>
+
 <body>
 
-<h1>Sistema de Ingressos CACT</h1>
+<h1>Cact Ingressos 🎟️</h1>
+<p>Venda e compre ingressos com comissão automática.</p>
 
-<!-- BOTÃO POLÍTICAS -->
-<button onclick="openPoliticas()">📄 Ver Políticas</button>
+<!-- POLÍTICAS -->
+<div id="politicasBox" class="box" style="display:none;">
+    <h2>Políticas de Privacidade</h2>
+    <p>Você precisa aceitar para continuar usando a plataforma.</p>
+    <button onclick="abrirPoliticas()">Ler políticas completas</button>
+    <button onclick="aceitarPoliticas()">Aceitar ✔</button>
+</div>
 
-<!-- BOTÃO REGISTRAR VENDA -->
-<button onclick="registrarVenda()">Registrar Venda de Ingresso</button>
-
-<hr>
-<h3>Total vendido:</h3>
-<p id="vendas">0</p>
-
-<h3>Minha comissão ganha:</h3>
-<p id="comissao">R$ 0,00</p>
-
-<!-- MODAL DE POLÍTICAS -->
-<div class="modal-bg" id="politicasModal">
-    <div class="modal">
-        <span class="close" onclick="fecharPoliticas()">×</span>
-        <h2>Políticas de Privacidade & Comissão</h2>
-
-        <p>
-            Este sistema CACT permite registrar vendas de ingressos.
-            Cada ingresso gera comissão fixa baseada no valor vendido.
-        </p>
-
-        <p>
-            Você receberá <strong>R$0,10 de comissão a cada R$1,00 vendido</strong>.
-        </p>
-
-        <p>
-            A comissão <strong>não é permanente</strong>.  
-            Pode ser encerrada a qualquer momento sem aviso prévio.
-        </p>
-
-        <button onclick="aceitarPoliticas()">Aceitar Políticas</button>
+<div id="politicasModal">
+    <div id="politicasContent">
+        <h2>Políticas de Privacidade</h2>
+        <p>O sistema registra suas vendas, compras e comissões.</p>
+        <p>A comissão NÃO é permanente e pode ser removida a qualquer momento.</p>
         <button onclick="fecharPoliticas()">Fechar</button>
     </div>
 </div>
 
-<!-- SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- LOGIN GOOGLE -->
+<div id="loginBox" class="box" style="display:none;">
+    <h2>Entrar</h2>
+    <button onclick="loginGoogle()">Entrar com Google</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none;">
+
+    <button class="abaBtn" onclick="abrirAba('abaCriar')">Criar Ingresso</button>
+    <button class="abaBtn" onclick="abrirAba('abaComprar')">Comprar</button>
+    <button class="abaBtn" onclick="abrirAba('abaMinhasVendas')">Minhas Vendas</button>
+
+    <div id="abaCriar" class="box" style="display:none;">
+        <h2>Criar Ingresso</h2>
+        <input id="nomeIng" placeholder="Nome do ingresso">
+        <input id="localIng" placeholder="Local">
+        <input id="valorIng" type="number" placeholder="Valor">
+        <input id="qtdIng" type="number" placeholder="Quantidade">
+        <button onclick="criarIngresso()">Criar</button>
+    </div>
+
+    <div id="abaComprar" class="box" style="display:none;">
+        <h2>Ingressos à venda</h2>
+        <div id="listaComprar">Carregando...</div>
+    </div>
+
+    <div id="abaMinhasVendas" class="box" style="display:none;">
+        <h2>Minhas vendas</h2>
+        <div id="listaVendas">Carregando...</div>
+        <p><b>Total em comissão:</b> <span id="comissaoTotal"></span></p>
+    </div>
+
+    <button style="margin-top:20px;" onclick="logout()">Sair</button>
+</div>
 
 <script>
-    /* ===========================
-       CONFIG DO SUPABASE
-    ============================ */
-    const SUPABASE_URL = "COLOQUE_SUA_URL_AQUI";
-    const SUPABASE_KEY = "COLOQUE_SUA_ANON_KEY_AQUI";
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+/* ======================== */
+/* SUPABASE CONFIG          */
+/* ======================== */
+const supabase = supabase.createClient(
+    "https://nmbslklretjxqowhvotr.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc"
+);
 
-    /* ===========================
-        SISTEMA DE POLÍTICAS
-    ============================ */
-    function openPoliticas() {
-        document.getElementById("politicasModal").style.display = "flex";
+/* ======================== */
+/* POLÍTICAS                */
+/* ======================== */
+function checkPoliticas() {
+    if (!localStorage.getItem("politicasAceitas")) {
+        politicasBox.style.display = "block";
+        return false;
     }
+    return true;
+}
+function aceitarPoliticas() {
+    localStorage.setItem("politicasAceitas", "true");
+    location.reload();
+}
+function abrirPoliticas(){ politicasModal.style.display="block"; }
+function fecharPoliticas(){ politicasModal.style.display="none"; }
 
-    function fecharPoliticas() {
-        document.getElementById("politicasModal").style.display = "none";
-    }
+/* ======================== */
+/* LOGIN GOOGLE             */
+/* ======================== */
+async function loginGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google"
+    });
+    if (error) alert(error.message);
+}
 
-    function aceitarPoliticas() {
-        localStorage.setItem("politicasAceitas", "sim");
-        fecharPoliticas();
-        alert("Você aceitou as políticas.");
-    }
+async function logout() {
+    await supabase.auth.signOut();
+    location.reload();
+}
 
-    // abrir automaticamente se não foi aceito ainda
-    if (localStorage.getItem("politicasAceitas") !== "sim") {
-        setTimeout(openPoliticas, 300);
-    }
+/* ======================== */
+/* ABAS                     */
+/* ======================== */
+function abrirAba(id) {
+    abaCriar.style.display = "none";
+    abaComprar.style.display = "none";
+    abaMinhasVendas.style.display = "none";
+    document.getElementById(id).style.display = "block";
+}
 
-    /* ===========================
-        SISTEMA DE INGRESSOS (CACT)
-    ============================ */
+/* ======================== */
+/* CRIAR INGRESSO           */
+/* ======================== */
+async function criarIngresso() {
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session.user.id;
 
-    let totalVendas = 0;
-    let totalComissao = 0;
+    const nome = nomeIng.value;
+    const local = localIng.value;
+    const valor = Number(valorIng.value);
+    const qtd = Number(qtdIng.value);
 
-    async function registrarVenda() {
-        const valor = Number(prompt("Valor do ingresso vendido (R$):"));
+    await supabase.from("cact_ingressos").insert({
+        user_id: uid,
+        nome: nome,
+        local: local,
+        valor: valor,
+        quantidade: qtd
+    });
 
-        if (!valor || valor <= 0) {
-            alert("Valor inválido.");
-            return;
+    alert("Ingresso criado!");
+    carregarComprar();
+}
+
+/* ======================== */
+/* COMPRAR INGRESSO         */
+/* ======================== */
+async function comprar(id, valor) {
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session.user.id;
+
+    const codigo = Math.random().toString(36).substring(2,10).toUpperCase();
+    const comissao = valor * 0.10;
+
+    await supabase.from("cact_vendas").insert({
+        ingresso_id: id,
+        comprador_id: uid,
+        codigo: codigo,
+        valor_pago: valor,
+        comissao_valor: comissao
+    });
+
+    await supabase.rpc("reduzir_estoque", { ing_id: id });
+
+    alert("Compra realizada! Código: " + codigo);
+    carregarComprar();
+}
+
+/* ======================== */
+/* LISTAR PARA COMPRA       */
+/* ======================== */
+async function carregarComprar() {
+    const { data } = await supabase.from("cact_ingressos").select("*");
+
+    let html = "";
+    data.forEach(i=>{
+        if(i.quantidade > 0){
+            html += `
+                <div class="box">
+                    <b>${i.nome}</b><br>
+                    Local: ${i.local}<br>
+                    Valor: R$ ${i.valor}<br>
+                    Estoque: ${i.quantidade}<br>
+                    <button onclick="comprar('${i.id}', ${i.valor})">Comprar</button>
+                </div>
+            `;
         }
+    });
 
-        const comissaoGanha = valor * 0.10;
+    listaComprar.innerHTML = html || "Nenhum ingresso disponível";
+}
 
-        totalVendas += valor;
-        totalComissao += comissaoGanha;
+/* ======================== */
+/* MINHAS VENDAS            */
+/* ======================== */
+async function carregarVendas() {
+    const session = await supabase.auth.getSession();
+    const uid = session.data.session.user.id;
 
-        // atualiza tela
-        document.getElementById("vendas").innerText = "R$ " + totalVendas.toFixed(2);
-        document.getElementById("comissao").innerText = "R$ " + totalComissao.toFixed(2);
+    const { data } = await supabase
+        .from("cact_vendas")
+        .select("*, cact_ingressos(nome)")
+        .eq("ingresso_id.user_id", uid);
 
-        // envia pro banco Supabase
-        await db.from("ingressos").insert({
-            valor: valor,
-            comissao: comissaoGanha,
-            data: new Date().toISOString()
-        });
+    let total = 0;
+    let html = "";
 
-        alert("Venda registrada com sucesso!");
+    data.forEach(v=>{
+        total += v.comissao_valor;
+        html += `
+            <div class="box">
+                <b>${v.cact_ingressos.nome}</b><br>
+                Código: ${v.codigo}<br>
+                Comissão: R$ ${v.comissao_valor}
+            </div>
+        `;
+    });
+
+    listaVendas.innerHTML = html || "Nenhuma venda ainda";
+    comissaoTotal.innerText = "R$ " + total.toFixed(2);
+}
+
+/* ======================== */
+/* INICIALIZAÇÃO            */
+/* ======================== */
+window.onload = async () => {
+    if (!checkPoliticas()) return;
+
+    const session = await supabase.auth.getSession();
+
+    if (!session.data.session) {
+        loginBox.style.display = "block";
+        return;
     }
+
+    dashboard.style.display = "block";
+    abrirAba("abaComprar");
+
+    carregarComprar();
+    carregarVendas();
+};
 </script>
 
 </body>
