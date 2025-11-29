@@ -1,29 +1,5 @@
 <!--não a nada para besta ver no meu codigo fonte🖕  -->
-<!--
-INSTRUÇÕES RÁPIDAS (LEIA)
-- Troque SUPABASE_URL e SUPABASE_ANON_KEY abaixo se precisar apontar para outro projeto.
-- Para login Google funcionar:
-  1) No Supabase Dashboard > Authentication > Providers: habilite Google.
-  2) Em "Authorized redirect URIs" adicione:
-     - http://localhost:5500 (para testes locais)
-     - e o domínio onde for hospedar a página.
-- Em produção: crie políticas RLS no Supabase (Row Level Security) para proteger inserts/updates/deletes.
-  Exemplos (resumo):
-    - profiles: allow insert/upsert only when auth.uid() = id; allow update only same user.
-    - cact_ingressos: sellers may insert/update/delete only for rows where user_id = auth.uid()
-    - cact_vendas: inserts allowed by authenticated users; sellers only view their vendas.
-  Também recomendamos triggers/edge functions para operações críticas (ex.: controle de estoque).
-- TESTE LOCAL: use um servidor simples (ex: `live-server` ou `python -m http.server 5500`) e adicione
-  http://localhost:5500 nos Redirect URIs do provider Google no Supabase.
 
-SUPABASE KEYS (já preenchidas abaixo — estas chaves ANON key são para frontend)
-- SUPABASE_URL:
-  https://nmbslklretjxqowhvotr.supabase.co
-- SUPABASE_ANON_KEY:
-  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuZG1vamRxcG5teGZhcG10eGlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NzgxMjUsImV4cCI6MjA3OTI1NDEyNX0.HMZYxnIsUDC93qjdG0LKbZMT6w0g9DwJ1-tDEaaHNvc
-
-OBS: Não exponha secrets além da ANON_KEY no frontend.
--->
 
 <!doctype html>
 <html lang="pt-BR">
